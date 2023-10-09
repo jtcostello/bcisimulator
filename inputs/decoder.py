@@ -20,6 +20,7 @@ class RealTimeDecoder:
         self.output_scaler = output_scaler
         self.prev_desired_pos = 0.5 * np.ones((num_dof,))
         self.prev_actual_pos = 0.5 * np.ones((num_dof,))
+        self.recent_neural = None
 
     def decode(self, desired_pos):
         # TODO: make sure this is correct, and how the cursor input works
@@ -27,6 +28,7 @@ class RealTimeDecoder:
         desired_vel = desired_pos - self.prev_desired_pos
         neural = self.neuralsim.generate(pos=desired_pos, vel=desired_vel)
         neural = self.neural_scaler.transform(neural.reshape(1, -1))
+        self.recent_neural = neural.reshape(-1)
         self.prev_desired_pos = desired_pos
 
         # decode
@@ -44,3 +46,6 @@ class RealTimeDecoder:
         new_pos = np.clip(new_pos, 0, 1)
         self.prev_actual_pos = new_pos
         return new_pos
+
+    def get_recent_neural(self):
+        return self.recent_neural

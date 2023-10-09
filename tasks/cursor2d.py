@@ -2,15 +2,25 @@ from os import environ
 environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 import numpy as np
+import collections
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import matplotlib as mpl
+mpl.rcParams['toolbar'] = 'None'
 
 
 # Constants
 SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 800
+SCREEN_HEIGHT = 600
+# NEURAL_SCREEN_WIDTH = 1000
+# NEURAL_SCREEN_HEIGHT = 300
 FPS = 50
 TARGET_RADIUS = 30
 CURSOR_RADIUS = 8
 HOLD_DURATION = 200  # in milliseconds
+DO_PLOT_NEURAL = True
+NUM_CHANS_TO_PLOT = 20
+NUM_NEURAL_HISTORY_PLOT = 100
 
 colors = {
     'red': (255, 0, 0),
@@ -55,12 +65,34 @@ def unnormalize_pos(pos):
     return pos[0] * SCREEN_WIDTH, pos[1] * SCREEN_HEIGHT
 
 
+def visualize_neural_data(ax, neural_history):
+    ax.clear()  # clear previous data
+    if neural_history:
+        data = np.array(neural_history)
+        ypos = 0
+        for ch in range(min(data.shape[1], NUM_CHANS_TO_PLOT)):
+            ax.plot(data[:, ch] + ypos)
+            ypos += 3
+    ax.set_title('Neural Data Visualization')
+    ax.set_position([0, 0, 1, 1])
+    ax.axis('off')
+
+
 def cursor_task(input_source, recorder, decoder=None):
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.mouse.set_visible(False)
     pygame.display.set_caption("Cursor Task")
+    pygame.mouse.set_visible(False)
     clock = pygame.time.Clock()
+
+    # setup mpl figure for neural data visualization
+    # DO_PLOT_NEURAL = DO_PLOT_NEURAL if decoder is not None else False
+    fig = None
+    if DO_PLOT_NEURAL and decoder is not None:
+        neural_history = collections.deque(maxlen=NUM_NEURAL_HISTORY_PLOT)
+        fig, ax = plt.subplots(figsize=(10, 3), num='Neural Data Visualization')
+        ani = FuncAnimation(fig, lambda i: visualize_neural_data(ax, neural_history), interval=1000/FPS)
+        plt.show(block=False)  # non-blocking, continues with script execution
 
     target_position = generate_target()
     recording = False
@@ -120,6 +152,7 @@ def cursor_task(input_source, recorder, decoder=None):
             cursor_pos_in = np.array(normalize_pos(cursor_position))
             cursor_position = decoder.decode(cursor_pos_in)
             cursor_position = unnormalize_pos(cursor_position)
+            neural_history.append(decoder.get_recent_neural())
 
         # Check target acquisition
         distance_to_target = pygame.math.Vector2(target_position).distance_to(cursor_position)
@@ -154,6 +187,12 @@ def cursor_task(input_source, recorder, decoder=None):
             text3 = pygame.font.SysFont(None, 24).render(f"Avg Time {np.mean(trial_times)/1000:.2f}s", True, colors["black"])
             screen.blit(text3, (SCREEN_WIDTH - 120, 80, 100, 100))
 
+        # Draw neural data
+        if DO_PLOT_NEURAL and fig is not None:
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+
+        # Update screen & tick clock
         pygame.display.flip()
         clock.tick(FPS)
 
