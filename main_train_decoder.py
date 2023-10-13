@@ -13,13 +13,13 @@ import decoders.rnn
 import decoders.ridge
 import data_loading as data_loading
 
-
 # parse training options
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--num_chans', type=int, default=100)
 parser.add_argument('-n', '--neural_noise_level', type=float, default=0.3)
 parser.add_argument('--num_dof', type=int, default=2)
 parser.add_argument('-d', '--dataset', type=str, default="dataset_20230929_2158.pkl")
+parser.add_argument('-o', '--save_name', type=str, default=None)
 parser.add_argument('--decoder_type', type=str, default='rnn')
 parser.add_argument('--epochs', type=int, default=30)
 parser.add_argument('--train_data_frac', type=float, default=0.8)
@@ -32,6 +32,7 @@ num_chans = args.num_chans
 neural_noise_level = args.neural_noise_level
 num_dof = args.num_dof
 dataset_fname = args.dataset
+save_name = args.save_name
 decoder_type = args.decoder_type
 epochs = args.epochs
 train_data_frac = args.train_data_frac
@@ -53,11 +54,8 @@ print(f"Loaded {num_trials} trials, with {num_secs:.1f} seconds of data")
 print(f"Number of samples: {posvel.shape[0]}")
 
 # generate fake neural data from the movements
-neuralsim = neuralsim.LogLinUnitGenerator(num_chans, num_dof, pos_mult=0.5, vel_mult=1, noise_level=neural_noise_level)
-neural = []
-for i in range(len(pos)):
-    neural.append(neuralsim.generate(pos=pos[i], vel=vel[i]))
-neural = np.vstack(neural)      # shape (num_timepts, num_chans)
+neural_sim = neuralsim.LogLinUnitGenerator(num_chans, num_dof, pos_mult=0.5, vel_mult=1, noise_level=neural_noise_level)
+neural = neural_sim.generate(pos=pos, vel=vel)  # shape (num_timepts, num_chans)
 
 # split train/test
 x_train, x_test, y_train, y_test = train_test_split(neural, posvel, train_size=train_data_frac, shuffle=False)
@@ -67,6 +65,7 @@ neural_scaler = StandardScaler()
 neural_scaler.fit(x_train)
 x_train_norm = neural_scaler.transform(x_train)
 x_test_norm = neural_scaler.transform(x_test)
+
 output_scaler = StandardScaler()
 output_scaler.fit(y_train)
 y_train_norm = output_scaler.transform(y_train)
@@ -85,8 +84,13 @@ loader_test = DataLoader(dataset_test, batch_size=len(dataset_test), shuffle=Fal
 # create and train decoder
 num_outputs = 2 * num_dof   # both pos & vel for each dof
 if decoder_type == 'ridge':
-    # TODO: finish RR training
-    pass
+    num_inputs_rr = x_train_norm_hist.shape[1] * x_train_norm_hist.shape[2]
+    model = decoders.ridge.RidgeRegression(num_inputs_rr, num_outputs, lmbda=0.1)
+    model.fit(x_train_norm_hist, y_train_norm)
+    y, yhat, _, _ = model.eval_perf(x_test_norm_hist, y_test_norm)
+    y = output_scaler.inverse_transform(y)
+    yhat = output_scaler.inverse_transform(yhat)
+    loss_history = None
 
 elif decoder_type == 'rnn':
     # setup model and optimizer
@@ -104,9 +108,10 @@ elif decoder_type == 'rnn':
     yhat = output_scaler.inverse_transform(yhat)
 
 if plot_training:
-    plt.plot(loss_history)
-    plt.title("Training Loss by Epoch")
-    plt.show()
+    if loss_history is not None:
+        plt.plot(loss_history)
+        plt.title("Training Loss by Epoch (normalized units)")
+        plt.show()
     fig, axs = plt.subplots(2, 2)
     axs = axs.flatten()
     titles = ["x pos", "y pos", "x vel", "y vel"]
@@ -121,9 +126,16 @@ if plot_training:
 
 # save decoder to file
 if save_decoder:
-    fname = f"decoder_{decoder_type}_{dataset_fname}"
-    with open(os.path.join("data", "trained_decoders", fname), 'wb') as f:
-        pickle.dump((model, neuralsim, neural_scaler, output_scaler), f)
-    print(f"Saved decoder to {fname}")
+    if save_name is None:
+        save_name = f"decoder_{decoder_type}_{dataset_fname}"
+    if not save_name.endswith(".pkl"):
+        save_name += ".pkl"
+
+    if decoder_type == 'rnn':
+        seq_len = 1     # for online RNNs we maintain a hidden state and only need one timestep
+
+    with open(os.path.join("data", "trained_decoders", save_name), 'wb') as f:
+        pickle.dump((model, neural_sim, neural_scaler, output_scaler, seq_len), f)
+    print(f"Saved decoder to {save_name}")
 
 

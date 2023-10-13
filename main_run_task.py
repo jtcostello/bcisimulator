@@ -9,9 +9,11 @@ NUM_DOF = 2
 
 
 def load_decoder(decoder_name):
+    if not decoder_name.endswith(".pkl"):
+        decoder_name += ".pkl"
     with open(f"data/trained_decoders/{decoder_name}", "rb") as f:
-        model, neuralsim, neural_scaler, output_scaler = pickle.load(f)
-    decoder = RealTimeDecoder(NUM_DOF, model, neuralsim, neural_scaler, output_scaler)
+        model, neuralsim, neural_scaler, output_scaler, seq_len = pickle.load(f)
+    decoder = RealTimeDecoder(NUM_DOF, model, neuralsim, neural_scaler, output_scaler, seq_len)
     print(f"Loaded decoder: {decoder_name}")
     return decoder
 
@@ -35,13 +37,13 @@ def get_task(task_choice):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="BMI Simulator")
+    parser = argparse.ArgumentParser(description="BCI Simulator")
     parser.add_argument("-i", "--input", default="mouse", choices=["mouse", "hand_tracker"],
                         help="Input source choice: mouse or hand_tracker.")
     parser.add_argument("-t", "--task", default="cursor", choices=["cursor", "other"],
                         help="Task choice: cursor or other.")
     parser.add_argument("-d", "--decoder", default=None,
-                        help="Name of the decoder file (e.g., rnndecoder1.pkl). If specified, a real-time wrapper will load the decoder.")
+                        help="Name of the decoder file (e.g., rnndecoder1). If specified, a real-time wrapper will load the decoder.")
 
     args = parser.parse_args()
     input_source = get_input_source(args.input)

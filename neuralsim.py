@@ -6,11 +6,11 @@ class LogLinUnitGenerator:
     def __init__(self, num_chans, num_dof, pos_mult=1, vel_mult=1, noise_level=0.1):
         self.num_chans = num_chans
         self.num_dof = num_dof
-        self.std_multiplier = noise_level   # std multiplier of the gaussian noise
+        self.std_multiplier = noise_level  # std multiplier of the gaussian noise
         self.scaler = 1
 
         # create gaussian random relationships, using [P, V] as the latent state
-        self.rand_mat = np.random.uniform(-1, 1, size=(2*num_dof + 1, num_chans))
+        self.rand_mat = np.random.uniform(-1, 1, size=(2 * num_dof + 1, num_chans))
 
         # scale P/V (for example, you could place more emphasis on position by increasing pos_mult)
         mult = np.concatenate([np.repeat([float(pos_mult), float(vel_mult)], num_dof), [1]])
@@ -18,11 +18,29 @@ class LogLinUnitGenerator:
         self.rand_mat *= mult
 
     def generate(self, pos, vel):
-        # TODO: make this work with matrices
-        # [1 p1 p2 v1 v2] * rand = [ch1 ch2 ch3 ch4 ...]
-        # (1, 2*num_dof+1) * (2*num_dof+1, num_units) = (1, num_units)
-        state = np.concatenate([pos-0.5, vel, [1]], axis=0).reshape((1, -1))
-        avgfr = np.exp(self.scaler * state @ self.rand_mat).reshape((-1,))
+        """
+        Generate neural data for each timestep given matrices of position and velocity.
 
-        # use a normal distribution to generate random firing rates - mean and var are equal
-        return np.random.normal(loc=avgfr, scale=np.abs(avgfr*self.std_multiplier))
+        Parameters:
+        - pos: np.array of shape (time_steps, num_dof) representing position at each timestep.
+        - vel: np.array of shape (time_steps, num_dof) representing velocity at each timestep.
+
+        Returns:
+        - np.array of shape (time_steps, num_chans) representing neural activity at each timestep.
+        """
+        if pos.ndim == 1:
+            pos = pos.reshape((1, -1))
+        if vel.ndim == 1:
+            vel = vel.reshape((1, -1))
+
+        # Concatenate pos, vel, and a column of ones
+        time_steps = pos.shape[0]
+        state = np.hstack([pos - 0.5, vel, np.ones((time_steps, 1))])
+
+        # Compute average firing rate
+        avgfr = np.exp(self.scaler * state @ self.rand_mat)
+
+        # Generate neural activity with Gaussian noise
+        neural_activity = np.random.normal(loc=avgfr, scale=np.abs(avgfr * self.std_multiplier))
+
+        return neural_activity
