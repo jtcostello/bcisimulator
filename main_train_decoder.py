@@ -93,12 +93,12 @@ if decoder_type == 'ridge':
     loss_history = None
 
 elif decoder_type == 'rnn':
-    # setup model and optimizer
-    lr = 5e-4
-    weight_decay = 0.001
+    # setup model and optimizer (we use the default hyperparams stored in the rnn.py module)
     device = torch.device('cuda:0') if torch.cuda.is_available() else 'cpu'
-    model = decoders.rnn.RNN(num_chans, num_outputs, device=device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    model = decoders.rnn.RNN(num_chans, num_outputs, hidden_size=decoders.rnn.RNN_CONFIG["hidden_size"], device=device)
+    optimizer = torch.optim.Adam(model.parameters(),
+                                 lr=decoders.rnn.RNN_CONFIG["lr"],
+                                 weight_decay=decoders.rnn.RNN_CONFIG["weight_decay"])
     loss_fn = torch.nn.MSELoss()
 
     # train & evaluate accuracy

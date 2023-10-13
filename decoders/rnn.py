@@ -3,6 +3,14 @@ import torch.nn as nn
 import numpy as np
 
 
+# default RNN training params
+RNN_CONFIG = {
+    "lr": 5e-4,
+    "weight_decay": 0.001,
+    "hidden_size": 512
+}
+
+
 class RNN(nn.Module):
     """A recurrent neural network decoder"""
 
@@ -62,7 +70,7 @@ class RNN(nn.Module):
                 losses.append(loss.item())
             epoch_losses.append(np.mean(losses))
             if verbose:
-                print(f'epoch {i}, loss = {np.mean(losses)}')
+                print(f'epoch {i}, training loss = {np.mean(losses)}')
         return epoch_losses
 
     def eval_perf(self, dataloader, verbose=True):

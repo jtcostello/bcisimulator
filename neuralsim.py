@@ -6,7 +6,7 @@ class LogLinUnitGenerator:
     def __init__(self, num_chans, num_dof, pos_mult=1, vel_mult=1, noise_level=0.1):
         self.num_chans = num_chans
         self.num_dof = num_dof
-        self.std_multiplier = noise_level  # std multiplier of the gaussian noise
+        self.noise_level = noise_level  # std multiplier of the gaussian noise
         self.scaler = 1
 
         # create gaussian random relationships, using [P, V] as the latent state
@@ -41,6 +41,6 @@ class LogLinUnitGenerator:
         avgfr = np.exp(self.scaler * state @ self.rand_mat)
 
         # Generate neural activity with Gaussian noise
-        neural_activity = np.random.normal(loc=avgfr, scale=np.abs(avgfr * self.std_multiplier))
+        neural_activity = np.random.normal(loc=avgfr, scale=np.abs(avgfr * self.noise_level))
 
         return neural_activity

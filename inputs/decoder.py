@@ -9,9 +9,9 @@ class RealTimeDecoder:
     Simulates neural activity based on the current pos/vel, runs the decoder,
     and updates position by integrating velocity.
 
-    The `model` should output both positions and velocities.
+    The `model` should output both positions and velocities (e.g. [pos1 pos2 vel1 vel2])
     """
-    def __init__(self, num_dof, model, neuralsim, neural_scaler, output_scaler, seq_len, integration_beta=0.97):
+    def __init__(self, num_dof, model, neuralsim, neural_scaler, output_scaler, seq_len, integration_beta=0.98):
         self.num_dof = num_dof
         self.model = model
         self.model.enable_online(True)
@@ -22,6 +22,7 @@ class RealTimeDecoder:
         self.integration_beta = integration_beta        # 0.9 means 90% of position is from integrated velocity
         print(f"Decoder using {integration_beta * 100:.1f}% integrated velocity, "
               f"{100 - integration_beta * 100:.1f}% decoded position")
+        print(f"Neural simulator: {self.neuralsim.num_chans} chans with {self.neuralsim.noise_level} noise level")
 
         # setup neural history & init with zeros
         num_chans = neuralsim.num_chans

@@ -7,20 +7,22 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
+from tasks.utils import TargetGenerator
 
 
 # Constants
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 600
-# NEURAL_SCREEN_WIDTH = 1000
-# NEURAL_SCREEN_HEIGHT = 300
+NEURAL_SCREEN_WIDTH_IN = 10
+NEURAL_SCREEN_HEIGHT_IN = 3
 FPS = 50
 TARGET_RADIUS = 30
 CURSOR_RADIUS = 8
-HOLD_DURATION = 200  # in milliseconds
+HOLD_DURATION = 500                 # in milliseconds
 DO_PLOT_NEURAL = True
 NUM_CHANS_TO_PLOT = 20
-NUM_NEURAL_HISTORY_PLOT = 100
+NUM_NEURAL_HISTORY_PLOT = 100       # number of timepoints
+TARGET_TYPE = "random"              # "random" or "centerout"
 
 colors = {
     'red': (255, 0, 0),
@@ -28,6 +30,7 @@ colors = {
     'white': (255, 255, 255),
     'black': (0, 0, 0)
 }
+font_size = 24
 
 
 class Button:
@@ -50,13 +53,6 @@ class Button:
             self.action()
 
 
-def generate_target():
-    # generate a random target position
-    x = np.random.randint(TARGET_RADIUS, SCREEN_WIDTH - TARGET_RADIUS)
-    y = np.random.randint(TARGET_RADIUS, SCREEN_HEIGHT - TARGET_RADIUS)
-    return x, y
-
-
 def normalize_pos(pos):
     return pos[0] / SCREEN_WIDTH, pos[1] / SCREEN_HEIGHT
 
@@ -73,28 +69,41 @@ def visualize_neural_data(ax, neural_history):
         for ch in range(min(data.shape[1], NUM_CHANS_TO_PLOT)):
             ax.plot(data[:, ch] + ypos)
             ypos += 3
-    ax.set_title('Neural Data Visualization')
     ax.set_position([0, 0, 1, 1])
     ax.axis('off')
 
 
-def cursor_task(input_source, recorder, decoder=None):
+def cursor_task(input_source, recorder, decoder=None, target_type="random"):
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Cursor Task")
     pygame.mouse.set_visible(False)
     clock = pygame.time.Clock()
+    print("--tip: press spacebar to reset the cursor to your mouse position--")
+
+    # setup targets
+    if target_type == "random":
+        edge = 0.2  # prevent targets in the outer 20% of the screen
+        target_gen = TargetGenerator(num_dof=2, center_out=False, is_discrete=False, continuous_range=[edge, 1 - edge])
+
+    elif target_type == "centerout":
+        # 8 circular targets, centered at (0.5, 0.5)
+        targets = [(0.8, 0.5), (0.71, 0.71), (0.5, 0.8), (0.29, 0.71),
+                   (0.2, 0.5), (0.29, 0.29), (0.5, 0.2), (0.71, 0.29)]
+        target_gen = TargetGenerator(num_dof=2, center_out=True, is_discrete=True, discrete_targs=targets)
 
     # setup mpl figure for neural data visualization
     # DO_PLOT_NEURAL = DO_PLOT_NEURAL if decoder is not None else False
     fig = None
     if DO_PLOT_NEURAL and decoder is not None:
         neural_history = collections.deque(maxlen=NUM_NEURAL_HISTORY_PLOT)
-        fig, ax = plt.subplots(figsize=(10, 3), num='Neural Data Visualization')
-        ani = FuncAnimation(fig, lambda i: visualize_neural_data(ax, neural_history), interval=1000/FPS)
+        fig, ax = plt.subplots(figsize=(NEURAL_SCREEN_WIDTH_IN, NEURAL_SCREEN_HEIGHT_IN),
+                               num='Neural Data Visualization (first 20 channels)')
+        ani = FuncAnimation(fig, lambda i: visualize_neural_data(ax, neural_history), interval=1000/FPS,
+                            cache_frame_data=False)
         plt.show(block=False)  # non-blocking, continues with script execution
 
-    target_position = generate_target()
+    target_position = unnormalize_pos(tuple(target_gen.generate_targets()))
     recording = False
     online = False
     start_hold_time = None
@@ -128,6 +137,7 @@ def cursor_task(input_source, recorder, decoder=None):
         if online:
             online_button.text = "Go Offline"
             online_button.color = "red"
+            decoder.set_position(normalize_pos(pygame.mouse.get_pos()))
         else:
             online_button.text = "Go Online"
             online_button.color = "green"
@@ -154,13 +164,19 @@ def cursor_task(input_source, recorder, decoder=None):
             cursor_position = unnormalize_pos(cursor_position)
             neural_history.append(decoder.get_recent_neural())
 
+        # if space bar is pressed, reset the position to the cursor (useful if the decoded position gets biased)
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE]:
+            decoder.set_position(normalize_pos(cursor_position))
+
         # Check target acquisition
         distance_to_target = pygame.math.Vector2(target_position).distance_to(cursor_position)
         if distance_to_target <= TARGET_RADIUS:
             if start_hold_time is None:
                 start_hold_time = pygame.time.get_ticks()
             elif pygame.time.get_ticks() - start_hold_time >= HOLD_DURATION:
-                target_position = generate_target()
+                # Target acquired -> new trial
+                target_position = unnormalize_pos(tuple(target_gen.generate_targets()))
                 start_hold_time = None
                 trial += 1
                 cur_time = pygame.time.get_ticks()
@@ -179,13 +195,15 @@ def cursor_task(input_source, recorder, decoder=None):
 
         # Draw info text
         time = pygame.time.get_ticks() / 1000
-        text1 = pygame.font.SysFont(None, 24).render(f"{time:.1f}", True, colors["black"])
-        screen.blit(text1, (SCREEN_WIDTH - 100, 20, 100, 100))
-        text2 = pygame.font.SysFont(None, 24).render(f'Trial {trial}', True, colors["black"])
-        screen.blit(text2, (SCREEN_WIDTH - 100, 50, 100, 100))
+        font = pygame.font.SysFont(None, font_size)
+        text1 = font.render(f"{time:.1f}", True, colors["black"])
+        text2 = font.render(f'Trial {trial}', True, colors["black"])
         if trial_times:
-            text3 = pygame.font.SysFont(None, 24).render(f"Avg Time {np.mean(trial_times)/1000:.2f}s", True, colors["black"])
-            screen.blit(text3, (SCREEN_WIDTH - 120, 80, 100, 100))
+            text3 = font.render(f"Avg Time {np.mean(trial_times) / 1000:.2f}s", True, colors["black"])
+        screen.blit(text1, (SCREEN_WIDTH - text1.get_width() - 20, 20))
+        screen.blit(text2, (SCREEN_WIDTH - text2.get_width() - 20, 50))
+        if trial_times:
+            screen.blit(text3, (SCREEN_WIDTH - text3.get_width() - 20, 80))
 
         # Draw neural data
         if DO_PLOT_NEURAL and fig is not None:

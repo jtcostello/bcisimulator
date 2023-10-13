@@ -1,6 +1,5 @@
 import argparse
 import pickle
-from inputs import mouse, hand_tracker
 from tasks import cursor2d, handtask
 from data_recorder import DataRecorder
 from inputs.decoder import RealTimeDecoder
@@ -19,12 +18,8 @@ def load_decoder(decoder_name):
 
 
 def get_input_source(input_choice):
-    if input_choice == "mouse":
-        return mouse
-    elif input_choice == "hand_tracker":
-        return hand_tracker
-    else:
-        raise ValueError(f"Invalid input choice: {input_choice}")
+    # (In the future we might add more input options, like hand tracking)
+    return None
 
 
 def get_task(task_choice):
@@ -44,6 +39,8 @@ def main():
                         help="Task choice: cursor or other.")
     parser.add_argument("-d", "--decoder", default=None,
                         help="Name of the decoder file (e.g., rnndecoder1). If specified, a real-time wrapper will load the decoder.")
+    parser.add_argument("-tt", "--target_type", default="random", choices=["random", "centerout"],
+                        help="Target type: random or centerout.")
 
     args = parser.parse_args()
     input_source = get_input_source(args.input)
@@ -54,7 +51,7 @@ def main():
         decoder = load_decoder(args.decoder)
 
     task = get_task(args.task)
-    task(input_source, DataRecorder(), decoder)
+    task(input_source, DataRecorder(), decoder, target_type=args.target_type)
 
 
 if __name__ == "__main__":
