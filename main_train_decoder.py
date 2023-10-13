@@ -54,7 +54,7 @@ print(f"Loaded {num_trials} trials, with {num_secs:.1f} seconds of data")
 print(f"Number of samples: {posvel.shape[0]}")
 
 # generate fake neural data from the movements
-neural_sim = neuralsim.LogLinUnitGenerator(num_chans, num_dof, pos_mult=0.5, vel_mult=1, noise_level=neural_noise_level)
+neural_sim = neuralsim.LogLinUnitGenerator(num_chans, num_dof, pos_mult=0.5, vel_mult=2, noise_level=neural_noise_level)
 neural = neural_sim.generate(pos=pos, vel=vel)  # shape (num_timepts, num_chans)
 
 # split train/test

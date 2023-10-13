@@ -167,6 +167,7 @@ def cursor_task(input_source, recorder, decoder=None, target_type="random"):
         # if space bar is pressed, reset the position to the cursor (useful if the decoded position gets biased)
         keys = pygame.key.get_pressed()
         if keys[pygame.K_SPACE]:
+            cursor_position = pygame.mouse.get_pos()
             decoder.set_position(normalize_pos(cursor_position))
 
         # Check target acquisition
