@@ -1,9 +1,8 @@
 # BCI Simulator
 
-BCI simulator is a lightweight simulator for closed-loop brain-computer interfaces (BCIs), with the goal of being easily 
-modifiable. It is designed for researchers to quickly test out decoder algorithms and get a "feel" for how they might 
-work in a closed-loop setting.
-It may also be helpful to teach students about the implementation of closed-loop, real-time BCIs.
+BCI simulator is a lightweight simulator for closed-loop brain-computer interfaces (BCIs), with the goal of simplicity 
+and being easily modifiable. It is designed for researchers to quickly test out decoder algorithms and get a "feel" for 
+how they might work in a closed-loop setting. It may also be helpful to teach students about the implementation of closed-loop, real-time BCIs.
 
 [//]: # (![cursor simulator]&#40;docs/img/cursortask.png&#41;)
 <p align="center">
@@ -26,9 +25,9 @@ Pipeline using a decoder as input:
 
 This project is largely inspired by other closed loop simulators, 
 including the [AE Studio Neural Data Simulator](https://github.com/agencyenterprise/neural-data-simulator),
+[BRAND/Ali et al. 2023](https://www.biorxiv.org/content/10.1101/2023.08.08.552473v1.full),
 [Willet et al. 2019](https://www.nature.com/articles/s41598-019-44166-7), 
-[Cunningham et al. 2011](https://journals.physiology.org/doi/full/10.1152/jn.00503.2010),
-and [BRAND/Ali et al. 2023](https://www.biorxiv.org/content/10.1101/2023.08.08.552473v1.full).
+and [Cunningham et al. 2011](https://journals.physiology.org/doi/full/10.1152/jn.00503.2010).
 
 
 ## Installation
@@ -50,14 +49,18 @@ pip install -r requirements.txt
 
 ## Usage
 
+### 1. Collect movement data
+
 Run the 2d cursor task on random targets, using the mouse as input:
 ```
    python main_run_task.py -t cursor
 ```
 
-Train an RNN decoder (100 channels, neural noise of 0.1, trained for 50 epochs):
+### 2. Train a decoder (this also creates a neural data simulator)
+
+Train an RNN decoder (100 channels, neural noise of 0.1, trained for 30 epochs):
 ```
-   python main_train_decoder.py -c 100 -n 0.1 -epochs 50 -d dataset_20231012_250sec_random.pkl -o rnndecoder1
+   python main_train_decoder.py -c 100 -n 0.1 --epochs 30 -d dataset_20231012_250sec_random.pkl -o rnndecoder1
 ```
 
 Train a ridge regression decoder with 5 history bins (100 channels, neural noise of 0.1):
@@ -65,9 +68,17 @@ Train a ridge regression decoder with 5 history bins (100 channels, neural noise
    python main_train_decoder.py -c 100 -n 0.1 -seq_len 5 -d dataset_20231012_250sec_random.pkl -o ridgedecoder1
 ```
 
+### 3. Test the decoder in closed-loop (simluating neural data in real time)
+
 Run the 2d cursor task on center-out targets, using a decoder as input:
 ```
    python main_run_task.py -t cursor -d rnndecoder1 -tt centerout
+```
+
+View all the available command line arguments:
+```
+   python main_run_task.py -h
+   python main_train_decoder.py -h
 ```
 
 ## Simulator design notes
@@ -117,3 +128,5 @@ directly indicate how well it will perform in a closed-loop setting.
 - Awasthi et al. 2022, Validation of a non-invasive, real-time, human-in-the-loop model of intracortical brain-computer interfaces
 
 
+## Todo / Future work
+- Add a virtual hand environment, using Leap motion or Google mediapipe for hand tracking

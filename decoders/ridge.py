@@ -8,7 +8,7 @@ class RidgeRegression(nn.Module):
 
     def __init__(self, num_inputs, num_outputs, lmbda=0.1):
         super().__init__()
-        self.num_inputs = num_inputs
+        self.num_inputs = num_inputs    # equal to num_features * seq_len(history)
         self.num_outputs = num_outputs
         self.lmbda = lmbda
         self.weights = None

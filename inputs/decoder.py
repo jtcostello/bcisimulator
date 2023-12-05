@@ -49,7 +49,7 @@ class RealTimeDecoder:
         pos = decoded_posvel[:self.num_dof]
         vel = decoded_posvel[self.num_dof:]
 
-        # integrate velocity
+        # integrate velocity and clip position to [0, 1]
         new_pos = self.integration_beta * (self.prev_actual_pos + vel) + (1 - self.integration_beta) * pos
         new_pos = np.clip(new_pos, 0, 1)
         self.prev_actual_pos = new_pos
