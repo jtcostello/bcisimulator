@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
-from tasks.utils import TargetGenerator
 
+from tasks.utils import TargetGenerator
+from tasks.utils import visualize_neural_data
 
 # Constants
 SCREEN_WIDTH = 1000
@@ -18,11 +19,11 @@ NEURAL_SCREEN_HEIGHT_IN = 3
 FPS = 50
 TARGET_RADIUS = 30
 CURSOR_RADIUS = 8
-HOLD_DURATION = 500                 # in milliseconds
+HOLD_DURATION = 500  # in milliseconds
 DO_PLOT_NEURAL = True
 NUM_CHANS_TO_PLOT = 20
-NUM_NEURAL_HISTORY_PLOT = 100       # number of timepoints
-TARGET_TYPE = "random"              # "random" or "centerout"
+NUM_NEURAL_HISTORY_PLOT = 100  # number of timepoints
+TARGET_TYPE = "random"  # "random" or "centerout"
 
 colors = {
     'red': (255, 0, 0),
@@ -61,19 +62,7 @@ def unnormalize_pos(pos):
     return pos[0] * SCREEN_WIDTH, pos[1] * SCREEN_HEIGHT
 
 
-def visualize_neural_data(ax, neural_history):
-    ax.clear()  # clear previous data
-    if neural_history:
-        data = np.array(neural_history)
-        ypos = 0
-        for ch in range(min(data.shape[1], NUM_CHANS_TO_PLOT)):
-            ax.plot(data[:, ch] + ypos)
-            ypos += 3
-    ax.set_position([0, 0, 1, 1])
-    ax.axis('off')
-
-
-def cursor_task(input_source, recorder, decoder=None, target_type="random"):
+def cursor_task(recorder, decoder=None, target_type="random"):
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Cursor Task")
@@ -99,7 +88,9 @@ def cursor_task(input_source, recorder, decoder=None, target_type="random"):
         neural_history = collections.deque(maxlen=NUM_NEURAL_HISTORY_PLOT)
         fig, ax = plt.subplots(figsize=(NEURAL_SCREEN_WIDTH_IN, NEURAL_SCREEN_HEIGHT_IN),
                                num='Neural Data Visualization (first 20 channels)')
-        ani = FuncAnimation(fig, lambda i: visualize_neural_data(ax, neural_history), interval=1000/FPS,
+        ani = FuncAnimation(fig,
+                            lambda i: visualize_neural_data(ax, neural_history, NUM_CHANS_TO_PLOT),
+                            interval=1000 / FPS,
                             cache_frame_data=False)
         plt.show(block=False)  # non-blocking, continues with script execution
 
@@ -222,5 +213,3 @@ def cursor_task(input_source, recorder, decoder=None, target_type="random"):
                             normalize_pos(cursor_position),
                             normalize_pos(target_position),
                             online)
-
-
