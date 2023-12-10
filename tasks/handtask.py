@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from simplehand import SimpleHand
 import matplotlib as mpl
+from matplotlib.widgets import Button
 mpl.rcParams['toolbar'] = 'None'
 
 from inputs.hand_tracker import HandTracker
@@ -15,8 +16,8 @@ SCREEN_WIDTH_IN = 10
 SCREEN_HEIGHT_IN = 8
 NEURAL_SCREEN_WIDTH_IN = 10
 NEURAL_SCREEN_HEIGHT_IN = 3
-FPS = 50
-DO_PLOT_NEURAL = True      # TODO switch to true
+MAX_FPS = 30
+DO_PLOT_NEURAL = True
 NUM_CHANS_TO_PLOT = 20
 NUM_NEURAL_HISTORY_PLOT = 100  # number of timepoints
 
@@ -24,14 +25,59 @@ NUM_NEURAL_HISTORY_PLOT = 100  # number of timepoints
 def hand_task(recorder, decoder, target_type="random"):
     print("\n--- Starting hand task, use ctrl-c to exit ---\n")
 
+    # state vars
+    recording = False
+    online = False
+
     # init hand tracker
     hand_tracker = HandTracker(camera_id=0, show_tracking=True)     # TODO have option for cameraid
 
     # set up window for hand visualization
-    fig_hand, ax_hand = plt.subplots(figsize=(SCREEN_WIDTH_IN, SCREEN_HEIGHT_IN),
-                                     num='Hand Visualization')
-    # hand = SimpleHand(fig_hand, ax_hand)
-    # hand.draw()
+    fig_hand = plt.figure(figsize=(SCREEN_WIDTH_IN, SCREEN_HEIGHT_IN), num='Hand Visualization')
+    ax_hand = fig_hand.add_subplot(111, projection='3d')
+    hand = SimpleHand(fig_hand, ax_hand)
+    hand.draw()
+
+    # add button for recording
+    ax_record_button = plt.axes([0.7, 0.05, 0.2, 0.075])
+    record_button = Button(ax_record_button, 'Start Recording', color="green")
+
+    def toggle_recording():
+        nonlocal recording
+        recording = not recording
+        if recording:
+            print("started recording")
+            record_button.label.set_text("Stop Recording")
+            record_button.color = "red"
+
+        else:
+            print("stopped recording")
+            record_button.label.set_text("Start Recording")
+            record_button.color = "green"
+            recorder.save_to_file()
+
+    record_button.on_clicked(lambda _: toggle_recording())
+
+    # add button for online/offline
+    if decoder is not None:
+        ax_online_button = plt.axes([0.4, 0.05, 0.2, 0.075])
+        online_button = Button(ax_online_button, 'Go Online', color="green")
+
+        def toggle_online():
+            nonlocal online
+            online = not online
+            print(f"online: {online}")
+            if online:
+                online_button.label.set_text("Go Offline")
+                online_button.color = "red"
+                decoder.set_position(hand_tracker.get_hand_position())
+            else:
+                online_button.label.set_text("Go Online")
+                online_button.color = "green"
+
+        online_button.on_clicked(lambda _: toggle_online())
+
+    # show the hand plot
     plt.show(block=False)
 
     # set up window for neural visualization
@@ -42,16 +88,12 @@ def hand_task(recorder, decoder, target_type="random"):
                                       num='Neural Data Visualization (first 20 channels)')
         ani = FuncAnimation(fig_neural,
                             lambda i: visualize_neural_data(ax, neural_history, NUM_CHANS_TO_PLOT),
-                            interval=1000 / FPS,
+                            interval=1000 / MAX_FPS,
                             cache_frame_data=False)
         plt.show(block=False)  # non-blocking, continues with script execution
 
-    # state vars
-    recording = False
-    online = False          # TODO button to toggle online/offline
-
     # main loop
-    clock = Clock()
+    clock = Clock(disp_fps=False)
     while True:
 
         # get hand position
@@ -68,8 +110,9 @@ def hand_task(recorder, decoder, target_type="random"):
             hand_pos = hand_pos_true
 
         # draw hand
-        # hand.set_flex(*hand_pos)
-        # hand.draw()
+        ax_hand.clear()
+        hand.set_flex(*hand_pos)
+        hand.draw()
         fig_hand.canvas.draw()
         fig_hand.canvas.flush_events()
 
@@ -86,8 +129,5 @@ def hand_task(recorder, decoder, target_type="random"):
                             [0, 0, 0, 0, 0],                        # dummy target position
                             online)
 
-        # update clock to limit frame rate
-        clock.tick(FPS)
-
-
-        # TODO spacebar reset position
+        # update clock to limit frame rate (usually we're well below this)
+        clock.tick(MAX_FPS)

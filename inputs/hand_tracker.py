@@ -48,15 +48,15 @@ finger_joint_indices = {
 
 finger_joint_min_angle = {
     'thumb': 30,
-    'index': 60,
+    'index': 65,
     'middle': 50,
     'ring': 50,
     'small': 40
 }
 
 finger_joint_max_angle = {
-    'thumb': 120,
-    'index': 250,
+    'thumb': 100,
+    'index': 240,
     'middle': 250,
     'ring': 250,
     'small': 250

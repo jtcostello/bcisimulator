@@ -4,13 +4,16 @@ import time
 
 class Clock:
     # Simple clock class to maintain a constant (max) frame rate
-    def __init__(self):
+    def __init__(self, disp_fps=False):
         self.start_time = time.time_ns() // 1_000_000
         self.last_time = time.time_ns() // 1_000_000
+        self.disp_fps = disp_fps
 
     def tick(self, fps):
         # sleep to maintain fps
         now = time.time_ns() // 1_000_000
+        if self.disp_fps:
+            print(f'fps: {1000 / (now - self.last_time):5.1f}', end='\r')
         time.sleep(max(0, 1000 / fps - (now - self.last_time)))
         self.last_time = now
 
