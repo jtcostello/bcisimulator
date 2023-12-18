@@ -17,29 +17,35 @@ SCREEN_HEIGHT_IN = 8
 NEURAL_SCREEN_WIDTH_IN = 10
 NEURAL_SCREEN_HEIGHT_IN = 3
 MAX_FPS = 30
+DISP_FPS = False
 DO_PLOT_NEURAL = True
 NUM_CHANS_TO_PLOT = 20
-NUM_NEURAL_HISTORY_PLOT = 100  # number of timepoints
+NUM_NEURAL_HISTORY_PLOT = 100   # number of timepoints
+
+CV2_CAMERA_ID = 0               # default camera id for cv2 (usually the webcam)
 
 
 def hand_task(recorder, decoder, target_type="random"):
     print("\n--- Starting hand task, use ctrl-c to exit ---\n")
+
+    # TODO: weird bug where if you start with a hand in camera, then the gui fails
 
     # state vars
     recording = False
     online = False
 
     # init hand tracker
-    hand_tracker = HandTracker(camera_id=0, show_tracking=True)     # TODO have option for cameraid
+    hand_tracker = HandTracker(camera_id=CV2_CAMERA_ID, show_tracking=True)
 
     # set up window for hand visualization
     fig_hand = plt.figure(figsize=(SCREEN_WIDTH_IN, SCREEN_HEIGHT_IN), num='Hand Visualization')
     ax_hand = fig_hand.add_subplot(111, projection='3d')
     hand = SimpleHand(fig_hand, ax_hand)
+    hand.set_flex(0, 0, 0, 0, 0)
     hand.draw()
 
     # add button for recording
-    ax_record_button = plt.axes([0.7, 0.05, 0.2, 0.075])
+    ax_record_button = plt.axes((0.05, 0.92, 0.15, 0.05))
     record_button = Button(ax_record_button, 'Start Recording', color="green")
 
     def toggle_recording():
@@ -60,13 +66,12 @@ def hand_task(recorder, decoder, target_type="random"):
 
     # add button for online/offline
     if decoder is not None:
-        ax_online_button = plt.axes([0.4, 0.05, 0.2, 0.075])
+        ax_online_button = plt.axes((0.25, 0.92, 0.15, 0.05))
         online_button = Button(ax_online_button, 'Go Online', color="green")
 
         def toggle_online():
             nonlocal online
             online = not online
-            print(f"online: {online}")
             if online:
                 online_button.label.set_text("Go Offline")
                 online_button.color = "red"
@@ -93,7 +98,7 @@ def hand_task(recorder, decoder, target_type="random"):
         plt.show(block=False)  # non-blocking, continues with script execution
 
     # main loop
-    clock = Clock(disp_fps=False)
+    clock = Clock(disp_fps=DISP_FPS)
     while True:
 
         # get hand position
@@ -110,9 +115,11 @@ def hand_task(recorder, decoder, target_type="random"):
             hand_pos = hand_pos_true
 
         # draw hand
+        azim, elev = ax_hand.azim, ax_hand.elev     # get current view
         ax_hand.clear()
         hand.set_flex(*hand_pos)
         hand.draw()
+        ax_hand.view_init(elev, azim)               # set view back to what it was
         fig_hand.canvas.draw()
         fig_hand.canvas.flush_events()
 
