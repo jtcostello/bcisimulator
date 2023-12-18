@@ -1,0 +1,8 @@
+pygame
+numpy
+pandas
+matplotlib
+scikit-learn
+torch
+simplehand
+mediapipe
