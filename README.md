@@ -8,7 +8,7 @@ and being easily modifiable. It's designed for researchers to quickly test out d
 how they might work in a closed-loop setting. It could also be helpful tool to teach students about the implementation 
 of closed-loop, real-time BCIs. Currently, we have two tasks implemented: a 2D cursor task and a 5-finger hand task.
 
-![pipelines](docs/img/bcisim task overview.png)
+<img src="docs/img/bcisim task overview.png" alt="simulator flow chart"/>
 
 There are three main components to the simulator:
 - **Task**: the task is the environment that the user interacts with. These are defined in the `/tasks` folder.
