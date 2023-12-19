@@ -1,6 +1,6 @@
 # BCI Simulator
 <p align="center">
-  <img src="docs/img/bcisimlogo_small.png" alt="cursor simulator" height="100"/>
+  <img src="docs/img/bcisimlogo_small.png" alt="cursor simulator" height="150"/>
 </p>
 
 BCI simulator is a lightweight simulator for closed-loop brain-computer interfaces (BCIs), with the goal of simplicity 
@@ -15,10 +15,10 @@ There are three main components to the simulator:
   - In the 2D cursor task, the user has to move the cursor to hit a target. 
   - In the 5-finger hand task, the user controls finger positions of a virtual hand. We use Google Mediapipe to track
     finger positions from a webcam.
-- **Input:** inputs include the mouse, hand finger tracking, a decoder (see pipelines below), or any other input devices. 
+- **Input sources:** inputs include the mouse, hand finger tracking, or a decoder. 
 The decoder is the algorithm that takes in neural data and predicts user intentions (movements). 
-We give examples for RNN and ridge regression decoders. Inputs sources are defined in the `/inputs` folder and decoder
-models are defined in the `/decoders` folder.
+We give examples for RNN and ridge regression decoders which are trained to predict position and velocity. 
+Inputs sources are defined in the `/inputs` folder and decoder models are defined in the `/decoders` folder.
 - **Neural Generator**: the neural generator creates artificial neural data using kinematics (position & velocity) as input. 
 We currently implement a simple log-linear tuning model, but plan to add more complex models in the future. This is defined
 in the `neuralsim.py` file.
@@ -29,10 +29,10 @@ Note that in trying to keep the simulator simple and easily modifiable, we don't
 simulate neural data at the spike level (instead simulating at the bin level). For a more realistic real-time simulator,
 we highly recommend checking out the [AE Studio Neural Data Simulator](https://github.com/agencyenterprise/neural-data-simulator) and 
 [BRAND/Ali et al. 2023](https://www.biorxiv.org/content/10.1101/2023.08.08.552473v1.full). 
-However, with the current design we get 7-10 FPS doing simultaneous hand tracking & decoding on an M1 Macbook Pro, and 
+However, with the current design, we get 7-10 FPS doing simultaneous hand tracking & decoding on an M1 Macbook Pro, and 
 significantly faster for the cursor task.
 
-[//]: # (![cursor simulator]&#40;docs/img/cursortask.png&#41;)
+### 2D Cursor Task:
 <p align="center">
   <img src="docs/img/cursortask.png" alt="cursor simulator" height="400"/>
 </p>
@@ -83,20 +83,30 @@ python main_run_task.py -t hand
 ```
 Recorded datasets are saved in the `/data/movedata` folder. Feel free to rename the files.
 
-### 2. Train a decoder (this also creates a neural data simulator)
+### 2. Create a fake brain to simulate neural data
+Create a fake brain with 100 channels and 0.1 neural noise for the cursor task:
+```
+python main_create_fakebrain.py -c 100 -n 0.1 -t cursor -o cursorbrain_100_01
+```
+Create a fake brain with 100 channels and 0.1 neural noise for the hand task:
+```
+python main_create_fakebrain.py -c 100 -n 0.1 -t hand -o handbrain_100_01
+```
 
-Train a ridge regression decoder with 5 history bins (100 channels, neural noise of 0.1):
-```
-python main_train_decoder.py -c 100 -n 0.1 --seq_len 5 -d dataset_20231012_250sec_random.pkl -o cursorridge1 --decoder_type ridge
-```
+### 3. Train a decoder
 
-Train an RNN decoder (100 channels, neural noise of 0.1, trained for 30 epochs):
+Train a ridge regression decoder with 5 history bins:
 ```
-python main_train_decoder.py -c 100 -n 0.1 --epochs 30 -d dataset_20231012_250sec_random.pkl -o cursorrnn1 --decoder_type rnn
+python main_train_decoder.py --decoder_type ridge --seq_len 5 -d dataset_20231012_250sec_random.pkl -fb cursorbrain_100_02 -o cursorridge1 
+```
+Train an RNN decoder (trained for 30 epochs):
+```
+python main_train_decoder.py --decoder_type rnn --epochs 30 -d dataset_20231012_250sec_random.pkl -fb cursorbrain_100_02 -o cursorrnn1
 ```
 Decoders are saved in the `/data/trained_decoders` folder.
+Note that the fake brain is also saved in the decoder file.
 
-### 3. Test the decoder in closed-loop (simulating neural data in real time)
+### 4. Test the decoder in closed-loop (simulating neural data in real time)
 
 Run the 2d cursor task on random targets, using a decoder as input:
 ```
