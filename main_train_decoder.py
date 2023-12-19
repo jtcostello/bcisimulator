@@ -15,10 +15,9 @@ import data_loading as data_loading
 
 # parse training options
 parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--num_chans', type=int, default=100)
-parser.add_argument('-n', '--neural_noise_level', type=float, default=0.3)
 parser.add_argument('-d', '--dataset', type=str, default="dataset_20231012_250sec_random.pkl")
 parser.add_argument('-o', '--save_name', type=str, default=None)
+parser.add_argument('-fb', '--fake_brain', type=str, default=None)
 parser.add_argument('--decoder_type', type=str, default='rnn')
 parser.add_argument('--epochs', type=int, default=50)
 parser.add_argument('--train_data_frac', type=float, default=0.8)
@@ -27,8 +26,6 @@ parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--no_plot', action='store_false')
 parser.add_argument('--no_save', action='store_false')
 args = parser.parse_args()
-num_chans = args.num_chans
-neural_noise_level = args.neural_noise_level
 dataset_fname = args.dataset
 save_name = args.save_name
 decoder_type = args.decoder_type
@@ -41,6 +38,8 @@ save_decoder = args.no_save
 
 
 # load movement data
+if not dataset_fname.endswith(".pkl"):
+    dataset_fname += ".pkl"
 with open(os.path.join("data", "movedata", dataset_fname), 'rb') as f:
     df = pickle.load(f)
 pos = np.stack(df.current_position.to_numpy())                                 # shape (num_timepts, num_dof)
@@ -52,9 +51,19 @@ num_dof = pos.shape[1]
 print(f"Loaded {num_trials} trials, with {num_secs:.1f} seconds of data")
 print(f"Number of samples: {posvel.shape[0]}")
 
+# load fake brain
+if args.fake_brain is None:
+    raise ValueError("Must specify a fake brain")
+if not args.fake_brain.endswith(".pkl"):
+    args.fake_brain += ".pkl"
+with open(os.path.join("data", "fakebrains", args.fake_brain), 'rb') as f:
+    fake_brain, num_chans, brain_num_dof = pickle.load(f)
+assert brain_num_dof == num_dof
+print(f"Loaded fake brain: {args.fake_brain}")
+# neural_sim = neuralsim.LogLinUnitGenerator(num_chans, num_dof, pos_mult=0.5, vel_mult=2, noise_level=neural_noise_level)
+
 # generate fake neural data from the movements
-neural_sim = neuralsim.LogLinUnitGenerator(num_chans, num_dof, pos_mult=0.5, vel_mult=2, noise_level=neural_noise_level)
-neural = neural_sim.generate(pos=pos, vel=vel)  # shape (num_timepts, num_chans)
+neural = fake_brain.generate(pos=pos, vel=vel)      # shape (num_timepts, num_chans)
 
 # split train/test
 x_train, x_test, y_train, y_test = train_test_split(neural, posvel, train_size=train_data_frac, shuffle=False)
@@ -136,7 +145,5 @@ if save_decoder:
         seq_len = 1     # for online RNNs we maintain a hidden state and only need one timestep
 
     with open(os.path.join("data", "trained_decoders", save_name), 'wb') as f:
-        pickle.dump((model, neural_sim, neural_scaler, output_scaler, seq_len), f)
+        pickle.dump((model, fake_brain, neural_scaler, output_scaler, seq_len), f)
     print(f"Saved decoder to {save_name}")
-
-
