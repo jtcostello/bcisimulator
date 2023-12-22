@@ -26,7 +26,7 @@ CV2_CAMERA_ID = 0               # default camera id for cv2 (usually the webcam)
 
 
 def hand_task(recorder, decoder, target_type="random"):
-    print("\n--- Starting hand task, use ctrl-c to exit ---\n")
+    print("\n\t✋  🤙 ✊️  Starting hand task, use ctrl-c to exit  ✌️ 👌 🖐  \n")
 
     # TODO: weird bug where if you start with a hand in camera, then the gui fails
 
