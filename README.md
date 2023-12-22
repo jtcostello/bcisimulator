@@ -1,6 +1,6 @@
-# BCI Simulator
 <p align="center">
-  <img src="docs/img/bcisimlogo_small.png" alt="cursor simulator" height="150"/>
+  <img src="docs/img/bci simulator logo text.png" style="max-width: 500px; width: 100%;" alt="BCI Simulator">
+
 </p>
 
 BCI simulator is a lightweight simulator for closed-loop brain-computer interfaces (BCIs), with the goal of simplicity 
@@ -10,20 +10,23 @@ of closed-loop, real-time BCIs. Currently, we have two tasks implemented: a 2D c
 
 <img src="docs/img/bcisim task overview.png" alt="simulator flow chart"/>
 
-There are three main components to the simulator:
-- **Task**: the task is the environment that the user interacts with. These are defined in the `/tasks` folder.
-  - In the 2D cursor task, the user has to move the cursor to hit a target. 
-  - In the 5-finger hand task, the user controls finger positions of a virtual hand. We use Google Mediapipe to track
-    finger positions from a webcam.
-- **Input sources:** inputs include the mouse, hand finger tracking, or a decoder. 
-The decoder is the algorithm that takes in neural data and predicts user intentions (movements). 
-We give examples for RNN and ridge regression decoders which are trained to predict position and velocity. 
-Inputs sources are defined in the `/inputs` folder and decoder models are defined in the `/decoders` folder.
-- **Neural Generator**: the neural generator creates artificial neural data using kinematics (position & velocity) as input. 
-We currently implement a simple log-linear tuning model, but plan to add more complex models in the future. This is defined
-in the `neuralsim.py` file.
+The simulator works as follows:
+1. The user's intended movements are recorded using either the mouse or hand tracking.
+2. Neural data is simulated that encodes the user's movements. We currently implement a simple log-linear tuning model
+using position & velocity as input.
+3. A decoder is trained to predict the user's movements from neural data.
+We give examples for RNN and ridge regression decoders which predict both position and velocity.
+4. In closed-loop or "online" control, neural data is simulated in real-time and fed into the decoder to predict the user's
+movements. The predicted velocities are integrated to get the cursor/hand position.
 
-<br>
+Relevant files:
+- Tasks are defined in the `/tasks` folder.
+- Inputs (hand tracking or the real-time decoder) are defined in the `/inputs` folder.
+- Neural simulators are defined in `neuralsim.py`.
+- Decoders are defined in the `/decoders` folder.
+- Anything starting with `main_` is a script that can be run from the command line.
+- Decoders/"fake brains"/movement data are saved in the `/data` folder.
+
 
 Note that in trying to keep the simulator simple and easily modifiable, we don't optimize for performance and we don't
 simulate neural data at the spike level (instead simulating at the bin level). For a more realistic real-time simulator,
@@ -32,11 +35,21 @@ we highly recommend checking out the [AE Studio Neural Data Simulator](https://g
 However, with the current design, we get 7-10 FPS doing simultaneous hand tracking & decoding on an M1 Macbook Pro, and 
 significantly faster for the cursor task.
 
-### 2D Cursor Task:
+### Cursor Task:
+In the cursor task, the user controls a 2D cursor and tries to move to a target. We have both center-out and 
+random targets.
 <p align="center">
-  <img src="docs/img/cursortask.png" alt="cursor simulator" height="400"/>
+  <img src="docs/img/cursortask_online.gif" alt="cursor simulator" style="max-width: 500px; width: 60%;"/>
 </p>
 
+
+### Hand Task:
+In the hand task, the user controls a 5-finger virtual hand. We use the 
+[Google Mediapipe hand tracking model](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker)
+to track the user's fingers with a webcam. Currently, this task is freely paced without targets.
+<p align="center">
+  <img src="docs/img/hand demo short.gif" alt="cursor simulator" style="max-width: 500px; width: 60%;"/>
+</p>
 
 ## Installation
 Clone the repository:
